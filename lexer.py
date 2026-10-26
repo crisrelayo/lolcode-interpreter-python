@@ -1,3 +1,6 @@
+import re
+
+
 class LexerError(Exception):
     pass
 
@@ -71,3 +74,72 @@ KEYWORDS = [
     ("MKAY", "MKAY", "Expression End Delimiter"),
     ("AN", "AN", "Operand Separator"),  # not in req 1, but needed to separate operands
 ]
+
+# a keyword can't be followed by a letter, digit or _, so R doesn't match the start of Rvar
+# we can't use \b because there's no word boundary right after the ? in O RLY?
+END_OF_WORD = r"(?![A-Za-z0-9_])"
+
+# longer keywords are tried first, so I HAS A is tried before A
+KEYWORD_PATTERNS = []
+for token_type, text, classification in sorted(KEYWORDS, key=lambda row: len(row[1]), reverse=True):
+    pattern = re.compile(re.escape(text) + END_OF_WORD)  # re.escape makes the ? in O RLY? a normal character
+    KEYWORD_PATTERNS.append((pattern, token_type, classification))
+
+IDENTIFIER_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+
+
+def match_keyword(line, pos):
+    for pattern, token_type, classification in KEYWORD_PATTERNS:
+        match = pattern.match(line, pos)
+        if match:
+            return match.group(), token_type, classification
+    return None
+
+
+def classify_identifier(tokens):
+    # all three identifier kinds use the same regex, so we check the token before it
+    previous = ""
+    if len(tokens) > 0:
+        previous = tokens[-1].type
+
+    if previous == "HOW_IZ_I" or previous == "I_IZ":
+        return "FUNCIDENT", "Function Identifier"
+    if previous == "IM_IN_YR" or previous == "IM_OUTTA_YR":
+        return "LOOPIDENT", "Loop Identifier"
+    return "VARIDENT", "Variable Identifier"
+
+
+def tokenize(source):
+    tokens = []
+    # splitlines also handles windows \r\n line endings
+    for line_number, line in enumerate(source.splitlines(), start=1):
+        tokenize_line(line, line_number, tokens)
+    return tokens
+
+
+def tokenize_line(line, line_number, tokens):
+    pos = 0
+    while pos < len(line):
+        if line[pos].isspace():
+            pos += 1
+            continue
+
+        col = pos + 1
+
+        # keywords before identifiers, so ITZ is never read as a variable
+        found = match_keyword(line, pos)
+        if found:
+            text, token_type, classification = found
+            tokens.append(Token(token_type, text, line_number, col, classification))
+            pos += len(text)
+            continue
+
+        match = IDENTIFIER_PATTERN.match(line, pos)
+        if match:
+            token_type, classification = classify_identifier(tokens)
+            tokens.append(Token(token_type, match.group(), line_number, col, classification))
+            pos += len(match.group())
+            continue
+
+        bad_text = line[pos:].split()[0]
+        raise LexerError(f"Line {line_number}, col {col}: unrecognized lexeme '{bad_text}'")
