@@ -85,11 +85,20 @@ for token_type, text, classification in sorted(KEYWORDS, key=lambda row: len(row
     pattern = re.compile(re.escape(text) + END_OF_WORD)  # re.escape makes the ? in O RLY? a normal character
     KEYWORD_PATTERNS.append((pattern, token_type, classification))
 
+# NUMBAR before NUMBR, or 17.0 would be read as the NUMBR 17
+# a number can't be followed by a letter, digit, _ or ., so 12abc and 1.2.3 are errors
+LITERAL_PATTERNS = [
+    (re.compile(r"-?[0-9]*\.[0-9]+(?![A-Za-z0-9_.])"), "NUMBAR_LITERAL", "NUMBAR Literal"),
+    (re.compile(r"-?[0-9]+(?![A-Za-z0-9_.])"), "NUMBR_LITERAL", "NUMBR Literal"),
+    (re.compile(r"(WIN|FAIL)" + END_OF_WORD), "TROOF_LITERAL", "TROOF Literal"),
+    (re.compile(r"(NOOB|NUMBR|NUMBAR|YARN|TROOF)" + END_OF_WORD), "TYPE_LITERAL", "Type Literal"),
+]
+
 IDENTIFIER_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
 
 
-def match_keyword(line, pos):
-    for pattern, token_type, classification in KEYWORD_PATTERNS:
+def match_pattern(patterns, line, pos):
+    for pattern, token_type, classification in patterns:
         match = pattern.match(line, pos)
         if match:
             return match.group(), token_type, classification
@@ -126,12 +135,27 @@ def tokenize_line(line, line_number, tokens):
 
         col = pos + 1
 
-        # keywords before identifiers, so ITZ is never read as a variable
-        found = match_keyword(line, pos)
+        # keywords and literals before identifiers, so ITZ and WIN are never read as variables
+        found = match_pattern(KEYWORD_PATTERNS, line, pos)
+        if found is None:
+            found = match_pattern(LITERAL_PATTERNS, line, pos)
         if found:
             text, token_type, classification = found
             tokens.append(Token(token_type, text, line_number, col, classification))
             pos += len(text)
+            continue
+
+        # + separates VISIBLE operands, ! at the end of VISIBLE skips the newline
+        if line[pos] == "+":
+            next_char = line[pos + 1:pos + 2]
+            if next_char.isdigit() or next_char == ".":
+                raise LexerError(f"Line {line_number}, col {col}: positive numbers can't have a + sign")
+            tokens.append(Token("PLUS", "+", line_number, col, "Output Separator"))
+            pos += 1
+            continue
+        if line[pos] == "!":
+            tokens.append(Token("BANG", "!", line_number, col, "Newline Suppressor"))
+            pos += 1
             continue
 
         match = IDENTIFIER_PATTERN.match(line, pos)
