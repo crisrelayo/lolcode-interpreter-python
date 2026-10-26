@@ -135,6 +135,18 @@ def tokenize_line(line, line_number, tokens):
 
         col = pos + 1
 
+        # yarn goes first, so text inside quotes like "I HAS A" stays text
+        # it becomes three tokens like the spec's gui sample, the opening ", the text, the closing "
+        if line[pos] == '"':
+            end = line.find('"', pos + 1)
+            if end == -1:
+                raise LexerError(f'Line {line_number}, col {col}: YARN is missing its closing "')
+            tokens.append(Token("STRING_DELIM", '"', line_number, col, "String Delimiter"))
+            tokens.append(Token("YARN_LITERAL", line[pos + 1:end], line_number, col + 1, "YARN Literal"))
+            tokens.append(Token("STRING_DELIM", '"', line_number, end + 1, "String Delimiter"))
+            pos = end + 1
+            continue
+
         # keywords and literals before identifiers, so ITZ and WIN are never read as variables
         found = match_pattern(KEYWORD_PATTERNS, line, pos)
         if found is None:
