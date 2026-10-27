@@ -120,13 +120,35 @@ def classify_identifier(tokens):
 
 def tokenize(source):
     tokens = []
+    in_comment = False  # true while we're inside an OBTW ... TLDR block
+    obtw_line = 0
+
     # splitlines also handles windows \r\n line endings
     for line_number, line in enumerate(source.splitlines(), start=1):
-        tokenize_line(line, line_number, tokens)
+        if in_comment:
+            words = line.split()
+            if len(words) > 0 and words[0] == "TLDR":
+                # only a BTW comment can come after TLDR
+                if len(words) > 1 and words[1] != "BTW":
+                    raise LexerError(f"Line {line_number}: TLDR must be on its own line")
+                tokens.append(Token("TLDR", "TLDR", line_number, line.index("TLDR") + 1, "Comment Delimiter"))
+                in_comment = False
+            elif "TLDR" in words:
+                raise LexerError(f"Line {line_number}: TLDR must be at the start of its own line")
+            continue
+
+        in_comment = tokenize_line(line, line_number, tokens)
+        if in_comment:
+            obtw_line = line_number
+
+    if in_comment:
+        raise LexerError(f"Line {obtw_line}: OBTW has no matching TLDR")
     return tokens
 
 
+# returns True if the line starts an OBTW block
 def tokenize_line(line, line_number, tokens):
+    first_token = len(tokens)  # so we can tell if this line already has code before an OBTW
     pos = 0
     while pos < len(line):
         if line[pos].isspace():
@@ -153,6 +175,21 @@ def tokenize_line(line, line_number, tokens):
             found = match_pattern(LITERAL_PATTERNS, line, pos)
         if found:
             text, token_type, classification = found
+
+            # comment text never becomes a token, only BTW, OBTW and TLDR do
+            if token_type == "BTW":
+                tokens.append(Token(token_type, text, line_number, col, classification))
+                return False
+            if token_type == "OBTW":
+                if len(tokens) > first_token:
+                    raise LexerError(f"Line {line_number}, col {col}: OBTW must be at the start of its own line")
+                if "TLDR" in line[pos + len(text):].split():
+                    raise LexerError(f"Line {line_number}: TLDR must be on its own line")
+                tokens.append(Token(token_type, text, line_number, col, classification))
+                return True
+            if token_type == "TLDR":
+                raise LexerError(f"Line {line_number}, col {col}: TLDR without a matching OBTW")
+
             tokens.append(Token(token_type, text, line_number, col, classification))
             pos += len(text)
             continue
@@ -179,3 +216,5 @@ def tokenize_line(line, line_number, tokens):
 
         bad_text = line[pos:].split()[0]
         raise LexerError(f"Line {line_number}, col {col}: unrecognized lexeme '{bad_text}'")
+
+    return False
