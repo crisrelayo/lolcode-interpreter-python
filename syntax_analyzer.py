@@ -25,6 +25,11 @@ class Parser:
         self.pos += 1
         return token
 
+    # checks token type
+    def at(self, *token_types):
+        token = self.peek()
+        return token is not None and token.type in token_types
+        
     # takes the current token if it's the right type, otherwise stops with an error
     def expect(self, token_type, what):
         token = self.peek()
@@ -51,11 +56,43 @@ class Parser:
     def parse_program(self):
         self.expect("HAI", "HAI")
         self.expect("NEWLINE", "end of line after HAI")
+
+        declarations = self.parse_variable()
+        
         self.expect("KTHXBYE", "KTHXBYE")
         self.expect("NEWLINE", "end of line after KTHXBYE")
         if self.peek() is not None:
             self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
         return Program([], [], [])
+
+    def parse_variable(self):
+        declarations = []
+        if not self.at("WAZZUP"):
+            return declarations
+            
+        self.advance()
+        self.expect("NEWLINE", "end of line after WAZZUP")
+        
+        while self.expect("I_HAS_A")
+            declarations.append(self.parse_declaration())
+        
+        if not self.at("BUHBYE"):
+            self.error(f"expected I HAS A or BUHBYE inside the variable section, found {self.describe(self.peek())}")
+        
+        self.advance()
+        self.expect("NEWLINE", "end of line after BUHBYE")
+        if self.peek() is not None:
+            self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
+
+    def parse_declaration(self):
+        start = self.advance()
+        name = self.expect("VARIDENT", "a variable name after I HAS A")
+        children = []
+
+        if self.at("ITZ"):
+            self.advance()
+            children.append(self.parse_expression())
+        self.expect("NEWLINE", "end of line after the variable declaration")
 
 
 # prints the tree with two spaces of indent per level
