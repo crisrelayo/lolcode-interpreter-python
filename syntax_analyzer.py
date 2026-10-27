@@ -63,7 +63,7 @@ class Parser:
         self.expect("NEWLINE", "end of line after KTHXBYE")
         if self.peek() is not None:
             self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
-        return Program([], [], [])
+        return Program([], declarations, [])
 
     def parse_variable(self):
         declarations = []
@@ -73,39 +73,49 @@ class Parser:
         self.advance()
         self.expect("NEWLINE", "end of line after WAZZUP")
         
-        while self.expect("I_HAS_A")
+        while self.at("I_HAS_A"):
             declarations.append(self.parse_declaration())
+            # if self.tokens[self.pos + 1]
+            #     break 
+        
+        # self.expect("BUHBYE", "BUHBYE")
+        # self.expect("NEWLINE", "NEWLINE")
         
         if not self.at("BUHBYE"):
             self.error(f"expected I HAS A or BUHBYE inside the variable section, found {self.describe(self.peek())}")
         
         self.advance()
         self.expect("NEWLINE", "end of line after BUHBYE")
-        if self.peek() is not None:
-            self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
+        return declarations
 
     def parse_declaration(self):
         start = self.advance()
         name = self.expect("VARIDENT", "a variable name after I HAS A")
-        children = []
+        # children = []
 
-        if self.at("ITZ"):
-            self.advance()
-            children.append(self.parse_expression())
+        # if self.at("ITZ"):
+        #     self.advance()
+        #     children.append(self.parse_expression())
         self.expect("NEWLINE", "end of line after the variable declaration")
+        return(name.lexeme)
 
 
 # prints the tree with two spaces of indent per level
 def print_tree(node, indent=0):
     space = "  " * indent
     if isinstance(node, Program):
-        print(space + "Program")
-        print(space + "  functions:")
-        for function in node.functions:
-            print_tree(function, indent + 2)
-        print(space + "  declarations:")
+        # print(node.declarations)
+        # print(space + "Program")
+        # print(space + "  functions:")
+        # for function in node.functions:
+        #     print_tree(function, indent + 2)
+        # print(space + "  declarations:")
+        # for declaration in node.declarations:
+        #     print_tree(declaration, indent + 2)
+        # print(space + "  statements:")
+        # for statement in node.statements:
+        #     print_tree(statement, indent + 2)
+        print("declarations: ", end="")
         for declaration in node.declarations:
-            print_tree(declaration, indent + 2)
-        print(space + "  statements:")
-        for statement in node.statements:
-            print_tree(statement, indent + 2)
+            print(declaration, end=' ')
+        print()
