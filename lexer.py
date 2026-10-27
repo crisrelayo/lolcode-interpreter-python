@@ -96,6 +96,8 @@ LITERAL_PATTERNS = [
 
 IDENTIFIER_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
 
+COMMENT_TYPES = ("BTW", "OBTW", "TLDR")
+
 
 def match_pattern(patterns, line, pos):
     for pattern, token_type, classification in patterns:
@@ -137,9 +139,18 @@ def tokenize(source):
                 raise LexerError(f"Line {line_number}: TLDR must be at the start of its own line")
             continue
 
+        start = len(tokens)
         in_comment = tokenize_line(line, line_number, tokens)
         if in_comment:
             obtw_line = line_number
+
+        # a line with code ends with a NEWLINE token, the parser uses it to tell statements apart
+        code_on_line = False
+        for token in tokens[start:]:
+            if token.type not in COMMENT_TYPES:
+                code_on_line = True
+        if code_on_line:
+            tokens.append(Token("NEWLINE", "\n", line_number, len(line) + 1, "Newline"))
 
     if in_comment:
         raise LexerError(f"Line {obtw_line}: OBTW has no matching TLDR")
@@ -218,3 +229,21 @@ def tokenize_line(line, line_number, tokens):
         raise LexerError(f"Line {line_number}, col {col}: unrecognized lexeme '{bad_text}'")
 
     return False
+
+
+# the gui token list doesn't show NEWLINE tokens
+def gui_tokens(tokens):
+    result = []
+    for token in tokens:
+        if token.type != "NEWLINE":
+            result.append(token)
+    return result
+
+
+# the parser doesn't need comment tokens
+def parser_tokens(tokens):
+    result = []
+    for token in tokens:
+        if token.type not in COMMENT_TYPES:
+            result.append(token)
+    return result
