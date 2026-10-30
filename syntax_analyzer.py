@@ -8,6 +8,15 @@ class Program:
         self.declarations = declarations
         self.statements = statements
 
+# added the Node class to represent nodes in the parse tree, with a kind, value, and list of children
+# kind: what it is, like "NUMBR_LITERAL".
+# value: its text, like "x" or "5".
+# children: a list of other nodes nested inside it.
+class Node:
+    def __init__(self, kind, value=None, children=None):
+        self.kind = kind
+        self.value = value
+        self.children = children or []
 
 class Parser:
     def __init__(self, tokens):
@@ -91,31 +100,46 @@ class Parser:
     def parse_declaration(self):
         start = self.advance()
         name = self.expect("VARIDENT", "a variable name after I HAS A")
-        # children = []
+        children = []
 
-        # if self.at("ITZ"):
-        #     self.advance()
-        #     children.append(self.parse_expression())
+        if self.at("ITZ"):
+            self.advance()
+            children.append(self.parse_expression())
         self.expect("NEWLINE", "end of line after the variable declaration")
-        return(name.lexeme)
-
+        return Node("declaration", name.lexeme, children)
+    
+    def parse_expression(self):
+        token = self.peek()
+        if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "VARIDENT"):
+            self.advance()
+            return Node(token.type, token.lexeme)
+        if self.at("STRING_DELIM"):
+            self.advance()
+            text = self.expect("YARN_LITERAL", "text inside the quotes")
+            self.expect("STRING_DELIM", "a closing quote")
+            return Node("YARN_LITERAL", text.lexeme)
+        self.error(f"expected a value, found {self.describe(token)}")
 
 # prints the tree with two spaces of indent per level
 def print_tree(node, indent=0):
     space = "  " * indent
     if isinstance(node, Program):
-        # print(node.declarations)
-        # print(space + "Program")
-        # print(space + "  functions:")
-        # for function in node.functions:
-        #     print_tree(function, indent + 2)
-        # print(space + "  declarations:")
-        # for declaration in node.declarations:
-        #     print_tree(declaration, indent + 2)
-        # print(space + "  statements:")
-        # for statement in node.statements:
-        #     print_tree(statement, indent + 2)
-        print("declarations: ", end="")
+        print(space + "Program")
+        print(space + "  functions:")
+        for function in node.functions:
+            print_tree(function, indent + 2)
+        print(space + "  declarations:")
         for declaration in node.declarations:
-            print(declaration, end=' ')
-        print()
+            print_tree(declaration, indent + 2)
+        print(space + "  statements:")
+        for statement in node.statements:
+            print_tree(statement, indent + 2)
+    elif isinstance(node, Node):
+        label = node.kind if node.value is None else f"{node.kind}: {node.value}"
+        print(space + label)
+        for child in node.children:
+            print_tree(child, indent + 1)
+        # print("declarations: ", end="")
+        # for declaration in node.declarations:
+        #     print(declaration, end=' ')
+        # print()
