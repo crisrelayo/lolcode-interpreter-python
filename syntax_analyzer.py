@@ -1,4 +1,4 @@
-#Binary operations
+#Binary operations (this is called a lot so this is put outside class methods)
 BINARY_OPS = ("SUM_OF", "DIFF_OF", "PRODUKT_OF", "QUOSHUNT_OF", "MOD_OF",
         "BIGGR_OF", "SMALLR_OF", "BOTH_OF", "EITHER_OF", "WON_OF",
         "BOTH_SAEM", "DIFFRINT")
@@ -72,7 +72,7 @@ class Parser:
         self.expect("NEWLINE", "end of line after HAI")
 
         declarations = self.parse_variable()
-        statements = self.parse_statement_list()
+        statements = self.parse_statement_list("KTHXBYE")        
         
         self.expect("KTHXBYE", "KTHXBYE")
         self.expect("NEWLINE", "end of line after KTHXBYE")
@@ -104,7 +104,7 @@ class Parser:
         return declarations
 
     def parse_declaration(self):
-        start = self.advance()
+        self.advance()
         name = self.expect("VARIDENT", "a variable name after I HAS A")
         children = []
 
@@ -127,16 +127,41 @@ class Parser:
         if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "VARIDENT"):
             self.advance()
             return Node(token.type, token.lexeme)
+        
         if self.at("STRING_DELIM"):
             self.advance()
             text = self.expect("YARN_LITERAL", "text inside the quotes")
             self.expect("STRING_DELIM", "a closing quote")
             return Node("YARN_LITERAL", text.lexeme)
+
+        if self.at("NOT"):
+            self.advance()
+            return Node("NOT", None, [self.parse_expression()])
+
+        # infinite arity
+        if self.at("ANY_OF", "ALL_OF", "SMOOSH"):
+            self.advance()
+            operands = [self.parse_expression()]
+            while self.at("AN"):
+                self.advance()
+                operands.append(self.parse_expression())
+            #expect mkay at the end of the operands even in SMOOSH
+            self.expect("MKAY", "MKAY at the end of operands")
+            return Node(token.type, None, operands)
+
+        # MAEK expression A TYPE (REQUIRES "A")
+        if self.at("MAEK"):
+            self.advance()
+            operand = self.parse_expression()
+            self.expect("A", "A after the expression in MAEK")
+            type_token = self.expect("TYPE_LITERAL", "a type after A")
+            return Node("MAEK", None, [operand, Node("TYPE_LITERAL", type_token.lexeme)])
+        
         self.error(f"expected a value, found {self.describe(token)}")
 
-    def parse_statement_list(self):
+    def parse_statement_list(self, *stop_types):
         statements = []
-        while self.peek() is not None and not self.at("KTHXBYE"):
+        while self.peek() is not None and not self.at(*stop_types):
             statements.append(self.parse_statement())
         return statements
 
@@ -145,7 +170,22 @@ class Parser:
             return self.parse_visible()
         if self.at("GIMMEH"):
             return self.parse_input()
+        if self.at("VARIDENT"):
+            return self.parse_assignment()
+        if self.at("O_RLY"):
+            return self.parse_if()
+        if self.at(*BINARY_OPS, "NOT", "ANY_OF", "ALL_OF", "SMOOSH", "MAEK"):
+            return self.parse_expression_statement()
+        if self.at("WTF"):
+            return self.parse_switch()
+        if self.at("GTFO"):
+            return self.parse_break()
         self.error(f"expected a statement, found {self.describe(self.peek())}")
+
+    def parse_expression_statement(self):
+        expression = self.parse_expression()
+        self.expect("NEWLINE", "end of line after the expression")
+        return Node("expression", None, [expression])
 
     def parse_visible(self):
         self.advance()  # VISIBLE
@@ -164,6 +204,78 @@ class Parser:
         name = self.expect("VARIDENT", "a variable name after GIMMEH")
         self.expect("NEWLINE", "end of line after GIMMEH")
         return Node("GIMMEH", name.lexeme)
+
+    def parse_assignment(self):
+        name = self.advance()
+        if self.at("R"):
+            self.advance()
+            value = self.parse_expression()
+            self.expect("NEWLINE", "end of line after the assignment")
+            return Node("R", name.lexeme, [value])
+        if self.at("IS_NOW_A"):
+            self.advance()
+            type_token = self.expect("TYPE_LITERAL", "a type after IS NOW A")
+            self.expect("NEWLINE", "end of line after IS NOW A")
+            return Node("IS_NOW_A", name.lexeme, [Node("TYPE_LITERAL", type_token.lexeme)])
+        self.error(f"expected R or IS NOW A after '{name.lexeme}', found {self.describe(self.peek())}")
+
+    def parse_if(self):
+        self.advance()  # O RLY?
+        self.expect("NEWLINE", "end of line after O RLY?")
+        stops = ("MEBBE", "NO_WAI", "OIC", "KTHXBYE")
+        clauses = []
+
+        self.expect("YA_RLY", "YA RLY after O RLY?")
+        self.expect("NEWLINE", "end of line after YA RLY")
+        clauses.append(Node("YA_RLY", None, self.parse_statement_list(*stops)))
+
+        while self.at("MEBBE"):
+            self.advance()
+            condition = self.parse_expression()
+            self.expect("NEWLINE", "end of line after the MEBBE condition")
+            body = self.parse_statement_list(*stops)
+            clauses.append(Node("MEBBE", None, [condition] + body))  # first child is the condition
+
+        if self.at("NO_WAI"):
+            self.advance()
+            self.expect("NEWLINE", "end of line after NO WAI")
+            clauses.append(Node("NO_WAI", None, self.parse_statement_list(*stops)))
+
+        self.expect("OIC", "OIC to close O RLY?")
+        self.expect("NEWLINE", "end of line after OIC")
+        return Node("O_RLY", None, clauses)
+
+    def parse_break(self):
+        self.advance()  # GTFO
+        self.expect("NEWLINE", "end of line after GTFO")
+        return Node("GTFO")
+
+    def parse_switch(self):
+        self.advance()  # WTF?
+        self.expect("NEWLINE", "end of line after WTF?")
+        stops = ("OMG", "OMGWTF", "OIC", "KTHXBYE")
+        clauses = []
+
+        if not self.at("OMG"):
+            self.error(f"expected OMG after WTF?, found {self.describe(self.peek())}")
+
+        while self.at("OMG"):
+            self.advance()
+            if not self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "STRING_DELIM"):
+                self.error(f"expected a literal after OMG, found {self.describe(self.peek())}")
+            literal = self.parse_expression()
+            self.expect("NEWLINE", "end of line after the OMG value")
+            body = self.parse_statement_list(*stops)
+            clauses.append(Node("OMG", None, [literal] + body))  # first child is the case value
+
+        if self.at("OMGWTF"):
+            self.advance()
+            self.expect("NEWLINE", "end of line after OMGWTF")
+            clauses.append(Node("OMGWTF", None, self.parse_statement_list(*stops)))
+
+        self.expect("OIC", "OIC to close WTF?")
+        self.expect("NEWLINE", "end of line after OIC")
+        return Node("WTF", None, clauses)
 
 # prints the tree with two spaces of indent per level
 def print_tree(node, indent=0):

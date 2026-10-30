@@ -11,6 +11,23 @@ HAI
         I HAS A prod ITZ PRODUKT OF 3 AN 4
         I HAS A quo ITZ QUOSHUNT OF 4 AN 5
     BUHBYE
+
+    BTW print literals and variables
+    VISIBLE "hello world"
+    VISIBLE monde BTW should be NOOB
+    VISIBLE num
+    VISIBLE name
+    VISIBLE fnum
+    VISIBLE flag
+
+    VISIBLE sum
+    VISIBLE diff
+    VISIBLE prod
+    VISIBLE quo
+
+    BTW print expressions
+    VISIBLE SUM OF PRODUKT OF 3 AN 5 AN BIGGR OF DIFF OF 17 AN 2 AN 5
+    VISIBLE BIGGR OF PRODUKT OF 11 AN 2 AN QUOSHUNT OF SUM OF 3 AN 5 AN 2
     
 KTHXBYE
 
