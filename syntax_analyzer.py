@@ -1,3 +1,8 @@
+#Binary operations
+BINARY_OPS = ("SUM_OF", "DIFF_OF", "PRODUKT_OF", "QUOSHUNT_OF", "MOD_OF",
+        "BIGGR_OF", "SMALLR_OF", "BOTH_OF", "EITHER_OF", "WON_OF",
+        "BOTH_SAEM", "DIFFRINT")
+
 class ParserError(Exception):
     pass
 
@@ -67,12 +72,13 @@ class Parser:
         self.expect("NEWLINE", "end of line after HAI")
 
         declarations = self.parse_variable()
+        statements = self.parse_statement_list()
         
         self.expect("KTHXBYE", "KTHXBYE")
         self.expect("NEWLINE", "end of line after KTHXBYE")
         if self.peek() is not None:
             self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
-        return Program([], declarations, [])
+        return Program([], declarations, statements)
 
     def parse_variable(self):
         declarations = []
@@ -110,6 +116,14 @@ class Parser:
     
     def parse_expression(self):
         token = self.peek()
+
+        if self.at(*BINARY_OPS):
+            self.advance()
+            left = self.parse_expression()
+            self.expect("AN", "AN between the two operands")
+            right = self.parse_expression()
+            return Node(token.type, None, [left, right])
+
         if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "VARIDENT"):
             self.advance()
             return Node(token.type, token.lexeme)
@@ -119,6 +133,37 @@ class Parser:
             self.expect("STRING_DELIM", "a closing quote")
             return Node("YARN_LITERAL", text.lexeme)
         self.error(f"expected a value, found {self.describe(token)}")
+
+    def parse_statement_list(self):
+        statements = []
+        while self.peek() is not None and not self.at("KTHXBYE"):
+            statements.append(self.parse_statement())
+        return statements
+
+    def parse_statement(self):
+        if self.at("VISIBLE"):
+            return self.parse_visible()
+        if self.at("GIMMEH"):
+            return self.parse_input()
+        self.error(f"expected a statement, found {self.describe(self.peek())}")
+
+    def parse_visible(self):
+        self.advance()  # VISIBLE
+        children = [self.parse_expression()]
+        while self.at("PLUS"):
+            self.advance()
+            children.append(self.parse_expression())
+        if self.at("BANG"):
+            self.advance()
+            children.append(Node("BANG", "!"))
+        self.expect("NEWLINE", "end of line after VISIBLE")
+        return Node("VISIBLE", None, children)
+
+    def parse_input(self):
+        self.advance()  # GIMMEH
+        name = self.expect("VARIDENT", "a variable name after GIMMEH")
+        self.expect("NEWLINE", "end of line after GIMMEH")
+        return Node("GIMMEH", name.lexeme)
 
 # prints the tree with two spaces of indent per level
 def print_tree(node, indent=0):
@@ -139,7 +184,3 @@ def print_tree(node, indent=0):
         print(space + label)
         for child in node.children:
             print_tree(child, indent + 1)
-        # print("declarations: ", end="")
-        # for declaration in node.declarations:
-        #     print(declaration, end=' ')
-        # print()
