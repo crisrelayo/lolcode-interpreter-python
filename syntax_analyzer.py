@@ -156,6 +156,9 @@ class Parser:
             self.expect("A", "A after the expression in MAEK")
             type_token = self.expect("TYPE_LITERAL", "a type after A")
             return Node("MAEK", None, [operand, Node("TYPE_LITERAL", type_token.lexeme)])
+
+        if self.at("I_IZ"):
+            return self.parse_call()
         
         self.error(f"expected a value, found {self.describe(token)}")
 
@@ -174,12 +177,18 @@ class Parser:
             return self.parse_assignment()
         if self.at("O_RLY"):
             return self.parse_if()
-        if self.at(*BINARY_OPS, "NOT", "ANY_OF", "ALL_OF", "SMOOSH", "MAEK"):
+        if self.at(*BINARY_OPS, "NOT", "ANY_OF", "ALL_OF", "SMOOSH", "MAEK", "I_IZ"):
             return self.parse_expression_statement()
         if self.at("WTF"):
             return self.parse_switch()
         if self.at("GTFO"):
             return self.parse_break()
+        if self.at("IM_IN_YR"):
+            return self.parse_loop()
+        if self.at("HOW_IZ_I"):
+            return self.parse_function()
+        if self.at("FOUND_YR"):
+            return self.parse_return()
         self.error(f"expected a statement, found {self.describe(self.peek())}")
 
     def parse_expression_statement(self):
@@ -276,6 +285,70 @@ class Parser:
         self.expect("OIC", "OIC to close WTF?")
         self.expect("NEWLINE", "end of line after OIC")
         return Node("WTF", None, clauses)
+
+    def parse_loop(self):
+        self.advance()  # IM IN YR
+        label = self.expect("LOOPIDENT", "a loop name after IM IN YR")
+        children = []
+
+        if self.at("UPPIN", "NERFIN"):
+            operation = self.advance()
+            self.expect("YR", "YR after UPPIN or NERFIN")
+            variable = self.expect("VARIDENT", "a variable after YR")
+            children.append(Node(operation.type, variable.lexeme))
+            if self.at("TIL", "WILE"):
+                condition = self.advance()
+                children.append(Node(condition.type, None, [self.parse_expression()]))
+
+        self.expect("NEWLINE", "end of line after the loop header")
+        children += self.parse_statement_list("IM_OUTTA_YR", "KTHXBYE")
+        self.expect("IM_OUTTA_YR", "IM OUTTA YR to close the loop")
+        end_label = self.expect("LOOPIDENT", "the loop name after IM OUTTA YR")
+        if end_label.lexeme != label.lexeme:
+            self.error(f"loop '{label.lexeme}' is closed with a different name '{end_label.lexeme}'")
+        self.expect("NEWLINE", "end of line after IM OUTTA YR")
+        return Node("LOOP", label.lexeme, children)
+
+    def parse_function(self):
+        self.advance()  # HOW IZ I
+        name = self.expect("FUNCIDENT", "a function name after HOW IZ I")
+        params = []
+
+        if self.at("YR"):
+            self.advance()
+            params.append(Node("VARIDENT", self.expect("VARIDENT", "a parameter name after YR").lexeme))
+            while self.at("AN"):
+                self.advance()
+                self.expect("YR", "YR before the parameter name")
+                params.append(Node("VARIDENT", self.expect("VARIDENT", "a parameter name after YR").lexeme))
+
+        self.expect("NEWLINE", "end of line after the function header")
+        body = self.parse_statement_list("IF_U_SAY_SO", "KTHXBYE")
+        self.expect("IF_U_SAY_SO", "IF U SAY SO to close the function")
+        self.expect("NEWLINE", "end of line after IF U SAY SO")
+        return Node("FUNCTION", name.lexeme, [Node("PARAMS", None, params)] + body)  # first child is the parameter list
+
+    def parse_return(self):
+        self.advance()  # FOUND YR
+        value = self.parse_expression()
+        self.expect("NEWLINE", "end of line after FOUND YR")
+        return Node("FOUND_YR", None, [value])
+
+    def parse_call(self):
+        self.advance()  # I IZ
+        name = self.expect("FUNCIDENT", "a function name after I IZ")
+        args = []
+
+        if self.at("YR"):
+            self.advance()
+            args.append(self.parse_expression())
+            while self.at("AN"):
+                self.advance()
+                self.expect("YR", "YR before the argument")
+                args.append(self.parse_expression())
+
+        self.expect("MKAY", "MKAY to close the function call")
+        return Node("CALL", name.lexeme, args)
 
 # prints the tree with two spaces of indent per level
 def print_tree(node, indent=0):
