@@ -149,12 +149,13 @@ class Parser:
             self.expect("MKAY", "MKAY at the end of operands")
             return Node(token.type, None, operands)
 
-        # MAEK expression A TYPE (REQUIRES "A")
+        # MAEK expression A TYPE (DOES NOT REQUIRE "A")
         if self.at("MAEK"):
             self.advance()
             operand = self.parse_expression()
-            self.expect("A", "A after the expression in MAEK")
-            type_token = self.expect("TYPE_LITERAL", "a type after A")
+            if self.at("A"):
+                self.advance()
+            type_token = self.expect("TYPE_LITERAL", "a valid type")
             return Node("MAEK", None, [operand, Node("TYPE_LITERAL", type_token.lexeme)])
 
         if self.at("I_IZ"):
