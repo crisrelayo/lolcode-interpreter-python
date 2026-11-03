@@ -64,6 +64,10 @@ class SemanticAnalyzer:
             return self.arithmetic(kind, self.evaluate(node.children[0]), self.evaluate(node.children[1]))
         if kind == "MAEK":
             return self.cast(self.evaluate(node.children[0]), node.children[1].value)
+        if kind == "BOTH_SAEM":
+            return self.is_same(self.evaluate(node.children[0]), self.evaluate(node.children[1]))
+        if kind == "DIFFRINT":
+            return not self.is_same(self.evaluate(node.children[0]), self.evaluate(node.children[1]))
         raise SemanticError(f"{kind} is not supported yet")
 
     #does the actual math for the arithmetic operations, and also converts the operands to numbers if they are not already
@@ -107,6 +111,12 @@ class SemanticAnalyzer:
             except ValueError:
                 pass
         raise SemanticError(f"cannot treat {self.to_text(value)!r} as a number")
+
+    # comparisons don't typecast, the bool check is needed because python says 1 == True
+    def is_same(self, left, right):
+        if isinstance(left, bool) != isinstance(right, bool):
+            return False
+        return left == right
 
     # used by MAEK and IS NOW A, only these explicit casts can turn a NOOB into another type
     def cast(self, value, type_name):
