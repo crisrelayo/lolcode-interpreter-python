@@ -142,11 +142,13 @@ class Parser:
         if self.at("ANY_OF", "ALL_OF", "SMOOSH"):
             self.advance()
             operands = [self.parse_expression()]
-            while self.at("AN"):
+            # AN YR starts the next function argument, so the operands stop there
+            while self.at("AN") and self.peek(1).type != "YR":
                 self.advance()
                 operands.append(self.parse_expression())
-            #expect mkay at the end of the operands even in SMOOSH
-            self.expect("MKAY", "MKAY at the end of operands")
+            # only ANY OF and ALL OF end with MKAY, SMOOSH doesn't
+            if token.type != "SMOOSH":
+                self.expect("MKAY", "MKAY at the end of operands")
             return Node(token.type, None, operands)
 
         # MAEK expression A TYPE (REQUIRES "A")
