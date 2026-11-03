@@ -121,14 +121,33 @@ class Parser:
         self.expect("NEWLINE", "end of line after the variable declaration")
         return Node("declaration", name.lexeme, children)
     
+    # <expr> ::= <operand> | <concat> | <infinite_bool>
     def parse_expression(self):
+        token = self.peek()
+
+        # infinite arity, only parse_expression handles these so they can't be nested
+        if self.at("ANY_OF", "ALL_OF", "SMOOSH"):
+            self.advance()
+            operands = [self.parse_operand()]
+            # AN YR starts the next function argument, so the operands stop there
+            while self.at("AN") and self.peek(1).type != "YR":
+                self.advance()
+                operands.append(self.parse_operand())
+            # only ANY OF and ALL OF end with MKAY, SMOOSH doesn't
+            if token.type != "SMOOSH":
+                self.expect("MKAY", "MKAY at the end of operands")
+            return Node(token.type, None, operands)
+
+        return self.parse_operand()
+
+    def parse_operand(self):
         token = self.peek()
 
         if self.at(*BINARY_OPS):
             self.advance()
-            left = self.parse_expression()
+            left = self.parse_operand()
             self.expect("AN", "AN between the two operands")
-            right = self.parse_expression()
+            right = self.parse_operand()
             return Node(token.type, None, [left, right])
 
         if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "VARIDENT"):
@@ -143,25 +162,12 @@ class Parser:
 
         if self.at("NOT"):
             self.advance()
-            return Node("NOT", None, [self.parse_expression()])
-
-        # infinite arity
-        if self.at("ANY_OF", "ALL_OF", "SMOOSH"):
-            self.advance()
-            operands = [self.parse_expression()]
-            # AN YR starts the next function argument, so the operands stop there
-            while self.at("AN") and self.peek(1).type != "YR":
-                self.advance()
-                operands.append(self.parse_expression())
-            # only ANY OF and ALL OF end with MKAY, SMOOSH doesn't
-            if token.type != "SMOOSH":
-                self.expect("MKAY", "MKAY at the end of operands")
-            return Node(token.type, None, operands)
+            return Node("NOT", None, [self.parse_operand()])
 
         # MAEK expression A TYPE (DOES NOT REQUIRE "A")
         if self.at("MAEK"):
             self.advance()
-            operand = self.parse_expression()
+            operand = self.parse_operand()
             if self.at("A"):
                 self.advance()
             type_token = self.expect("TYPE_LITERAL", "a valid type")
