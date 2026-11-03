@@ -153,7 +153,7 @@ class Parser:
             right = self.parse_operand()
             return Node(token.type, None, [left, right])
 
-        if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "VARIDENT"):
+        if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "VARIDENT"):
             self.advance()
             return Node(token.type, token.lexeme)
         
@@ -289,7 +289,7 @@ class Parser:
 
         while self.at("OMG"):
             self.advance()
-            if not self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "STRING_DELIM"):
+            if not self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "STRING_DELIM"):
                 self.error(f"expected a literal after OMG, found {self.describe(self.peek())}")
             literal = self.parse_expression()
             self.expect("NEWLINE", "end of line after the OMG value")
