@@ -42,8 +42,28 @@ class SemanticAnalyzer:
             self.variables[node.value] = self.cast(self.variables[node.value], node.children[0].value)
         elif kind == "expression":
             self.variables["IT"] = self.evaluate(node.children[0])
+        elif kind == "O_RLY":
+            self.run_if(node)
         else:
             raise SemanticError(f"{kind} is not supported yet")
+
+    def run_block(self, statements):
+        for statement in statements:
+            self.execute(statement)
+
+    # YA RLY runs if IT is WIN, otherwise the first MEBBE that is WIN runs, otherwise NO WAI
+    def run_if(self, node):
+        if self.to_troof(self.variables["IT"]):
+            self.run_block(node.children[0].children)
+            return
+        for clause in node.children[1:]:
+            if clause.kind == "NO_WAI":
+                self.run_block(clause.children)
+                return
+            # the first child of MEBBE is its condition
+            if self.to_troof(self.evaluate(clause.children[0])):
+                self.run_block(clause.children[1:])
+                return
 
     #this is for expressions
     #evaluate converts the literal's text into a value of the right type
