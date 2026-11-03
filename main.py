@@ -40,7 +40,7 @@ def main():
         print(error)
         return
     
-    print_tree(program)
+    # print_tree(program)
 
     try:
         SemanticAnalyzer().run(program)
