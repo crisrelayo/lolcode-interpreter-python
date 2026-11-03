@@ -61,6 +61,9 @@ class SemanticAnalyzer:
     #does the actual math for the arithmetic operations, and also converts the operands to numbers if they are not already
     def arithmetic(self, kind, left, right):
         a, b = self.to_number(left), self.to_number(right)
+        # if one operand is a NUMBAR, the result has to be a NUMBAR
+        if isinstance(a, float) or isinstance(b, float):
+            a, b = float(a), float(b)
         if kind == "SUM_OF":
             return a + b
         if kind == "DIFF_OF":
