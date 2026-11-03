@@ -311,14 +311,16 @@ class Parser:
         label = self.expect("LOOPIDENT", "a loop name after IM IN YR")
         children = []
 
-        if self.at("UPPIN", "NERFIN"):
-            operation = self.advance()
-            self.expect("YR", "YR after UPPIN or NERFIN")
-            variable = self.expect("VARIDENT", "a variable after YR")
-            children.append(Node(operation.type, variable.lexeme))
-            if self.at("TIL", "WILE"):
-                condition = self.advance()
-                children.append(Node(condition.type, None, [self.parse_expression()]))
+        if not self.at("UPPIN", "NERFIN"):
+            self.error(f"expected UPPIN or NERFIN after the loop name, found {self.describe(self.peek())}")
+
+        operation = self.advance()
+        self.expect("YR", "YR after UPPIN or NERFIN")
+        variable = self.expect("VARIDENT", "a variable after YR")
+        children.append(Node(operation.type, variable.lexeme))
+        if self.at("TIL", "WILE"):
+            condition = self.advance()
+            children.append(Node(condition.type, None, [self.parse_expression()]))
 
         self.expect("NEWLINE", "end of line after the loop header")
         self.gtfo_depth += 1
