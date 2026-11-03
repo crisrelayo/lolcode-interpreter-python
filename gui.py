@@ -37,6 +37,14 @@ class LOLCodeGUI:
         upper.add(editor_panel, weight=3)
         upper.add(tables_panel, weight=2)
 
+        self.editor = tk.Text(
+            editor_panel,
+            wrap="none",
+            font=("Consolas", 11),
+            undo=True
+        )
+        self.editor.pack(fill="both", expand=True)
+
         tables_panel.rowconfigure(0, weight=1)
         tables_panel.rowconfigure(1, weight=1)
         tables_panel.columnconfigure(0, weight=1)
@@ -56,6 +64,18 @@ class LOLCodeGUI:
         ttk.Button(outer, text="EXECUTE / RUN", command=self.execute).pack(
             fill="x", pady=(8, 8)
         )
+
+        console_frame = ttk.LabelFrame(outer, text="Console (Input / Output)", padding=6)
+        console_frame.pack(fill="both", expand=False)
+        console_frame.configure(height=180)
+        console_frame.pack_propagate(False)
+        self.console = tk.Text(
+            console_frame, height=9, wrap="word", state="disabled", font=("Consolas", 10)
+        )
+        self.console.pack(side="left", fill="both", expand=True)
+        console_y = ttk.Scrollbar(console_frame, orient="vertical", command=self.console.yview)
+        console_y.pack(side="right", fill="y")
+        self.console.configure(yscrollcommand=console_y.set)
 
     @staticmethod
     def _make_table(parent, columns, headings):
@@ -119,12 +139,38 @@ class LOLCodeGUI:
         return True
 
     @staticmethod
-    def execute(self):
-        """Run lexer -> parser -> semantic analyzer on the currently edited code.
+    def _clear_table(table):
+        for item in table.get_children():
+            table.delete(item)
 
-        Token rows appear after a successful lexical pass, even if parsing fails.
-        Variables are displayed after interpretation (also if a runtime error occurs).
-        """
+    def _write_console(self, text):
+        self.console.configure(state="normal")
+        self.console.insert("end", text)
+        self.console.see("end")
+        self.console.configure(state="disabled")
+        self.root.update_idletasks()
+
+    def _output(self, *values, sep=" ", end="\n"):
+        self._write_console(sep.join(str(value) for value in values) + end)
+
+    def _read_input(self):
+        answer = simpledialog.askstring("GIMMEH Input", "Enter a value:", parent=self.root)
+        if answer is None:
+            raise SemanticError("Input canceled during GIMMEH")
+        self._write_console(f"> {answer}\n")
+        return answer
+
+    def _display_tokens(self, tokens):
+        for token in gui_tokens(tokens):
+            self.token_table.insert("", "end", values=(token.lexeme, token.classification))
+
+    def _display_symbols(self, analyzer):
+        for identifier, value in analyzer.variables.items():
+            self.symbol_table.insert(
+                "", "end", values=(identifier, analyzer.to_text(value))
+            )
+
+    def execute(self):
         source = self.editor.get("1.0", "end-1c")
         self._clear_table(self.token_table)
         self._clear_table(self.symbol_table)
@@ -154,6 +200,7 @@ class LOLCodeGUI:
             self._write_console(f"Runtime error: {error}\n")
         finally:
             self._display_symbols(analyzer)
+
 def main():
     root = tk.Tk()
     LOLCodeGUI(root)
