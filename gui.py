@@ -16,8 +16,6 @@ class LOLCodeGUI:
 
         self._build_layout()
 
-<<<<<<< HEAD
-        print("Available methods:", dir(self))
     def _build_layout(self):
         outer = ttk.Frame(self.root, padding=10)
         outer.pack(fill="both", expand=True)
@@ -39,8 +37,21 @@ class LOLCodeGUI:
         upper.add(editor_panel, weight=3)
         upper.add(tables_panel, weight=2)
 
-        self.editor = tk.Text(editor_panel, wrap="none", font=("Consolas", 11))
-        self.editor.pack(fill="both", expand=True)
+        tables_panel.rowconfigure(0, weight=1)
+        tables_panel.rowconfigure(1, weight=1)
+        tables_panel.columnconfigure(0, weight=1)
+        tokens_frame = ttk.LabelFrame(tables_panel, text="List of Tokens", padding=5)
+        tokens_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
+        self.token_table = self._make_table(
+            tokens_frame, ("lexeme", "classification"), ("Lexeme", "Classification")
+        )
+
+        # Symbol table shows the final variable values after interpretation.
+        symbols_frame = ttk.LabelFrame(tables_panel, text="Symbol Table", padding=5)
+        symbols_frame.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
+        self.symbol_table = self._make_table(
+            symbols_frame, ("identifier", "value"), ("Identifier", "Value")
+        )
 
     @staticmethod
     def _make_table(parent, columns, headings):
@@ -102,29 +113,6 @@ class LOLCodeGUI:
             return False
         self.file_label.configure(text=self.current_file.name)
         return True
-=======
-        def _build_layout(self):
-            outer = ttk.Frame(self.root, padding=10)
-            outer.pack(fill="both", expand=True)
-
-            # TOP BAR: FILE EXPLORER ENTRY POINT
-            toolbar = ttk.Frame(outer)
-            toolbar.pack(fill="x", pady=(0, 8))
-            ttk.Button(toolbar, text="Open .lol File", command=self.open_file).pack(side="left")
-            ttk.Button(toolbar, text="Save", command=self.save_file).pack(side="left", padx=(6, 0))
-            ttk.Button(toolbar, text="Save As", command=self.save_as_file).pack(side="left", padx=(6, 0))
-            self.file_label = ttk.Label(toolbar, text="No file selected")
-            self.file_label.pack(side="left", padx=12)
-
-            # UPPER AREA: EDITOR AND TABLES
-            upper = ttk.Panedwindow(outer, orient="horizontal")
-            upper.pack(fill="both", expand=True)
-            editor_panel = ttk.LabelFrame(upper, text="LOLCODE Text Editor", padding=6)
-            tables_panel = ttk.Frame(upper)
-            upper.add(editor_panel, weight=3)
-            upper.add(tables_panel, weight=2)
-
->>>>>>> 1bb303664a4a6d857418c1bc2a5ba7892dc9cbb2
 
 def main():
     root = tk.Tk()
