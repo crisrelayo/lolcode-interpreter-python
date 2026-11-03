@@ -70,6 +70,12 @@ class SemanticAnalyzer:
             return not self.is_same(self.evaluate(node.children[0]), self.evaluate(node.children[1]))
         if kind in ("NOT", "BOTH_OF", "EITHER_OF", "WON_OF", "ALL_OF", "ANY_OF"):
             return self.boolean(kind, [self.to_troof(self.evaluate(child)) for child in node.children])
+        if kind == "SMOOSH":
+            values = [self.evaluate(child) for child in node.children]
+            # this cast is implicit, and a NOOB can only be implicitly cast to a TROOF
+            if None in values:
+                raise SemanticError("cannot use a NOOB value in SMOOSH")
+            return "".join(self.to_text(value) for value in values)
         raise SemanticError(f"{kind} is not supported yet")
 
     #does the actual math for the arithmetic operations, and also converts the operands to numbers if they are not already
