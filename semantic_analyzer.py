@@ -1,6 +1,10 @@
 class SemanticError(Exception):
     pass
 
+# GTFO raises this to jump out of whatever it's inside, even through nested ifs
+class Gtfo(Exception):
+    pass
+
 ARITHMETIC = ("SUM_OF", "DIFF_OF", "PRODUKT_OF", "QUOSHUNT_OF", "MOD_OF", "BIGGR_OF", "SMALLR_OF")
 
 class SemanticAnalyzer:
@@ -44,6 +48,10 @@ class SemanticAnalyzer:
             self.variables["IT"] = self.evaluate(node.children[0])
         elif kind == "O_RLY":
             self.run_if(node)
+        elif kind == "WTF":
+            self.run_switch(node)
+        elif kind == "GTFO":
+            raise Gtfo()
         else:
             raise SemanticError(f"{kind} is not supported yet")
 
@@ -64,6 +72,22 @@ class SemanticAnalyzer:
             if self.to_troof(self.evaluate(clause.children[0])):
                 self.run_block(clause.children[1:])
                 return
+
+    # once an OMG matches IT, the blocks after it also run until GTFO or OIC
+    def run_switch(self, node):
+        matched = False
+        try:
+            for clause in node.children:
+                if clause.kind == "OMGWTF":
+                    self.run_block(clause.children)
+                    break
+                # the first child of OMG is its value
+                if not matched:
+                    matched = self.is_same(self.variables["IT"], self.evaluate(clause.children[0]))
+                if matched:
+                    self.run_block(clause.children[1:])
+        except Gtfo:
+            pass
 
     #this is for expressions
     #evaluate converts the literal's text into a value of the right type
