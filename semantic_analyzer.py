@@ -52,6 +52,8 @@ class SemanticAnalyzer:
             self.run_switch(node)
         elif kind == "GTFO":
             raise Gtfo()
+        elif kind == "LOOP":
+            self.run_loop(node)
         else:
             raise SemanticError(f"{kind} is not supported yet")
 
@@ -86,6 +88,33 @@ class SemanticAnalyzer:
                     matched = self.is_same(self.variables["IT"], self.evaluate(clause.children[0]))
                 if matched:
                     self.run_block(clause.children[1:])
+        except Gtfo:
+            pass
+
+    # the first child is UPPIN or NERFIN, then TIL or WILE if there is one, the rest is the body
+    def run_loop(self, node):
+        operation = node.children[0]
+        name = operation.value
+        step = 1 if operation.kind == "UPPIN" else -1
+        condition = None
+        body = node.children[1:]
+        if body and body[0].kind in ("TIL", "WILE"):
+            condition = body[0]
+            body = body[1:]
+
+        self.require_declared(name)
+        self.to_number(self.variables[name])  # stops here if the variable can't be a number
+
+        try:
+            while True:
+                if condition is not None:
+                    result = self.to_troof(self.evaluate(condition.children[0]))
+                    if condition.kind == "TIL" and result:
+                        break
+                    if condition.kind == "WILE" and not result:
+                        break
+                self.run_block(body)
+                self.variables[name] = self.to_number(self.variables[name]) + step
         except Gtfo:
             pass
 
