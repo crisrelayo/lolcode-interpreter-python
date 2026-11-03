@@ -4,9 +4,12 @@ class SemanticError(Exception):
 ARITHMETIC = ("SUM_OF", "DIFF_OF", "PRODUKT_OF", "QUOSHUNT_OF", "MOD_OF", "BIGGR_OF", "SMALLR_OF")
 
 class SemanticAnalyzer:
-    def __init__(self):
+    # the gui can pass its own functions here instead of print and input
+    def __init__(self, output=print, read_input=input):
         self.variables = {"IT": None} #IT will be used as an implicit variable in some cases, so we will initialize it to None
         self.functions = {} #will be used to store function definitions
+        self.output = output
+        self.read_input = read_input
 
     def run(self, program):
         for declaration in program.declarations:
@@ -27,10 +30,10 @@ class SemanticAnalyzer:
             parts = [self.evaluate(child) for child in node.children if child.kind != "BANG"]
             text = "".join(self.to_text(part) for part in parts)
             suppress_newline = any(child.kind == "BANG" for child in node.children)
-            print(text, end="" if suppress_newline else "\n")
+            self.output(text, end="" if suppress_newline else "\n")
         elif kind == "GIMMEH":
             self.require_declared(node.value)
-            self.variables[node.value] = input()
+            self.variables[node.value] = self.read_input()
         elif kind == "R":
             self.require_declared(node.value)
             self.variables[node.value] = self.evaluate(node.children[0])
