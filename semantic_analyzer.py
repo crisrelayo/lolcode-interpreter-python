@@ -150,10 +150,16 @@ class SemanticAnalyzer:
                 pass
         raise SemanticError(f"cannot treat {self.to_text(value)!r} as a number")
 
-    # comparisons don't typecast, the bool check is needed because python says 1 == True
+    # the bool check is needed because python says 1 == True
     def is_same(self, left, right):
         if isinstance(left, bool) != isinstance(right, bool):
             return False
+        # our change from the spec, so GIMMEH input like "1" can match the number 1
+        if isinstance(left, str) != isinstance(right, str):
+            try:
+                return self.to_number(left) == self.to_number(right)
+            except SemanticError:
+                return False
         return left == right
 
     # used by MAEK and IS NOW A, only these explicit casts can turn a NOOB into another type
