@@ -2,9 +2,9 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
-#from lexer import LexerError, gui_tokens, parser_tokens, tokenize
-#from semantic_analyzer import SemanticAnalyzer, SemanticError
-#from syntax_analyzer import Parser, ParserError
+from lexer import LexerError, gui_tokens, parser_tokens, tokenize
+from semantic_analyzer import SemanticAnalyzer, SemanticError
+from syntax_analyzer import Parser, ParserError
 
 class LOLCodeGUI:
     def __init__(self, root):
@@ -46,11 +46,15 @@ class LOLCodeGUI:
             tokens_frame, ("lexeme", "classification"), ("Lexeme", "Classification")
         )
 
-        # Symbol table shows the final variable values after interpretation.
+        # SYMBOL TABLE: IDENTIFIERS AND VALUES
         symbols_frame = ttk.LabelFrame(tables_panel, text="Symbol Table", padding=5)
         symbols_frame.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
         self.symbol_table = self._make_table(
             symbols_frame, ("identifier", "value"), ("Identifier", "Value")
+        )
+
+        ttk.Button(outer, text="EXECUTE / RUN", command=self.execute).pack(
+            fill="x", pady=(8, 8)
         )
 
     @staticmethod
@@ -114,6 +118,42 @@ class LOLCodeGUI:
         self.file_label.configure(text=self.current_file.name)
         return True
 
+    @staticmethod
+    def execute(self):
+        """Run lexer -> parser -> semantic analyzer on the currently edited code.
+
+        Token rows appear after a successful lexical pass, even if parsing fails.
+        Variables are displayed after interpretation (also if a runtime error occurs).
+        """
+        source = self.editor.get("1.0", "end-1c")
+        self._clear_table(self.token_table)
+        self._clear_table(self.symbol_table)
+        self.console.configure(state="normal")
+        self.console.delete("1.0", "end")
+        self.console.configure(state="disabled")
+
+        if not source.strip():
+            self._write_console("No LOLCODE source to execute.\n")
+            return
+
+        try:
+            tokens = tokenize(source)
+            self._display_tokens(tokens)
+            program = Parser(parser_tokens(tokens)).parse_program()
+        except (LexerError, ParserError) as error:
+            self._write_console(f"{type(error).__name__}: {error}\n")
+            return
+
+        analyzer = SemanticAnalyzer(output=self._output, read_input=self._read_input)
+        try:
+            analyzer.run(program)
+        except SemanticError as error:
+            self._write_console(f"SemanticError: {error}\n")
+        except (ArithmeticError, ValueError, TypeError) as error:
+            # Defensive handling for Python errors in the interpreter's operations.
+            self._write_console(f"Runtime error: {error}\n")
+        finally:
+            self._display_symbols(analyzer)
 def main():
     root = tk.Tk()
     LOLCodeGUI(root)
