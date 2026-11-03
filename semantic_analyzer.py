@@ -92,7 +92,8 @@ class SemanticAnalyzer:
             return 1 if value else 0
         if isinstance(value, (int, float)):
             return value
-        if isinstance(value, str):
+        # only digits, hyphens and periods count, python's int() would also allow things like "1_000"
+        if isinstance(value, str) and all(char in "0123456789-." for char in value):
             try:
                 return float(value) if "." in value else int(value)
             except ValueError:
