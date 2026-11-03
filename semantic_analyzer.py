@@ -106,4 +106,7 @@ class SemanticAnalyzer:
             return "NOOB"
         if isinstance(value, bool):
             return "WIN" if value else "FAIL"
+        # keeps 2 decimals without rounding, going through 10 decimals first removes float noise
+        if isinstance(value, float):
+            return f"{value:.10f}"[:-8]
         return str(value)
