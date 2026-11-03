@@ -5,6 +5,11 @@ class SemanticError(Exception):
 class Gtfo(Exception):
     pass
 
+# FOUND YR raises this to jump out of a function with its return value
+class FoundYr(Exception):
+    def __init__(self, value):
+        self.value = value
+
 ARITHMETIC = ("SUM_OF", "DIFF_OF", "PRODUKT_OF", "QUOSHUNT_OF", "MOD_OF", "BIGGR_OF", "SMALLR_OF")
 
 class SemanticAnalyzer:
@@ -16,6 +21,8 @@ class SemanticAnalyzer:
         self.read_input = read_input
 
     def run(self, program):
+        for function in program.functions:
+            self.functions[function.value] = function
         for declaration in program.declarations:
             self.declare(declaration)
         for statement in program.statements:
@@ -54,6 +61,8 @@ class SemanticAnalyzer:
             raise Gtfo()
         elif kind == "LOOP":
             self.run_loop(node)
+        elif kind == "FOUND_YR":
+            raise FoundYr(self.evaluate(node.children[0]))
         else:
             raise SemanticError(f"{kind} is not supported yet")
 
@@ -118,6 +127,35 @@ class SemanticAnalyzer:
         except Gtfo:
             pass
 
+    def call_function(self, node):
+        if node.value not in self.functions:
+            raise SemanticError(f"function '{node.value}' is not defined")
+        function = self.functions[node.value]
+        params = function.children[0].children
+        if len(node.children) != len(params):
+            raise SemanticError(f"function '{node.value}' needs {len(params)} arguments, found {len(node.children)}")
+
+        # the arguments run first, while we can still see the caller's variables
+        args = [self.evaluate(child) for child in node.children]
+
+        # the function only gets its parameters and its own IT
+        caller_variables = self.variables
+        self.variables = {"IT": None}
+        for param, arg in zip(params, args):
+            self.variables[param.value] = arg
+
+        result = None  # GTFO or reaching the end returns NOOB
+        try:
+            self.run_block(function.children[1:])
+        except Gtfo:
+            pass
+        except FoundYr as found:
+            result = found.value
+
+        self.variables = caller_variables
+        self.variables["IT"] = result
+        return result
+
     #this is for expressions
     #evaluate converts the literal's text into a value of the right type
     def evaluate(self, node):
@@ -149,6 +187,8 @@ class SemanticAnalyzer:
             if None in values:
                 raise SemanticError("cannot use a NOOB value in SMOOSH")
             return "".join(self.to_text(value) for value in values)
+        if kind == "CALL":
+            return self.call_function(node)
         raise SemanticError(f"{kind} is not supported yet")
 
     #does the actual math for the arithmetic operations, and also converts the operands to numbers if they are not already
