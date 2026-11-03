@@ -66,8 +66,8 @@ class Parser:
         return f"'{token.lexeme}'"
 
     # <program> ::= <function_list> HAI <linebreak> <var_section> <statement_list> KTHXBYE <linebreak> <function_list>
-    # for now only HAI and KTHXBYE, the other parts get added in the next steps
     def parse_program(self):
+        functions = self.parse_function_list()
         self.expect("HAI", "HAI")
         self.expect("NEWLINE", "end of line after HAI")
 
@@ -76,9 +76,16 @@ class Parser:
         
         self.expect("KTHXBYE", "KTHXBYE")
         self.expect("NEWLINE", "end of line after KTHXBYE")
+        functions += self.parse_function_list()
         if self.peek() is not None:
             self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
-        return Program([], declarations, statements)
+        return Program(functions, declarations, statements)
+
+    def parse_function_list(self):
+        functions = []
+        while self.at("HOW_IZ_I"):
+            functions.append(self.parse_function())
+        return functions
 
     def parse_variable(self):
         declarations = []
@@ -188,8 +195,6 @@ class Parser:
             return self.parse_break()
         if self.at("IM_IN_YR"):
             return self.parse_loop()
-        if self.at("HOW_IZ_I"):
-            return self.parse_function()
         if self.at("FOUND_YR"):
             return self.parse_return()
         self.error(f"expected a statement, found {self.describe(self.peek())}")
