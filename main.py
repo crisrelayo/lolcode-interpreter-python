@@ -1,5 +1,6 @@
 from lexer import tokenize, gui_tokens, parser_tokens, LexerError
 from syntax_analyzer import Parser, ParserError, print_tree
+from semantic_analyzer import SemanticAnalyzer, SemanticError
 
 # add new test files here
 TEST_FILES = [
@@ -38,8 +39,13 @@ def main():
     except ParserError as error:
         print(error)
         return
+    
+    # print_tree(program)
 
-    print_tree(program)
+    try:
+        SemanticAnalyzer().run(program)
+    except SemanticError as error:
+        print(error)
 
 
 if __name__ == "__main__":
