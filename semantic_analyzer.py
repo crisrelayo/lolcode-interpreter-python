@@ -99,7 +99,7 @@ class SemanticAnalyzer:
     #used by VISIBLE to convert values to strings for printing
     def to_text(self, value):
         if value is None:
-            return ""
+            return "NOOB"
         if isinstance(value, bool):
             return "WIN" if value else "FAIL"
         return str(value)
