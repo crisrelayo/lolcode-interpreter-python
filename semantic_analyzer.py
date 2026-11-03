@@ -37,6 +37,9 @@ class SemanticAnalyzer:
         elif kind == "R":
             self.require_declared(node.value)
             self.variables[node.value] = self.evaluate(node.children[0])
+        elif kind == "IS_NOW_A":
+            self.require_declared(node.value)
+            self.variables[node.value] = self.cast(self.variables[node.value], node.children[0].value)
         elif kind == "expression":
             self.variables["IT"] = self.evaluate(node.children[0])
         else:
@@ -59,6 +62,8 @@ class SemanticAnalyzer:
             return self.variables[node.value]
         if kind in ARITHMETIC:
             return self.arithmetic(kind, self.evaluate(node.children[0]), self.evaluate(node.children[1]))
+        if kind == "MAEK":
+            return self.cast(self.evaluate(node.children[0]), node.children[1].value)
         raise SemanticError(f"{kind} is not supported yet")
 
     #does the actual math for the arithmetic operations, and also converts the operands to numbers if they are not already
@@ -102,6 +107,24 @@ class SemanticAnalyzer:
             except ValueError:
                 pass
         raise SemanticError(f"cannot treat {self.to_text(value)!r} as a number")
+
+    # used by MAEK and IS NOW A, only these explicit casts can turn a NOOB into another type
+    def cast(self, value, type_name):
+        if type_name == "NOOB":
+            return None
+        if value is None:
+            return {"NUMBR": 0, "NUMBAR": 0.0, "YARN": "", "TROOF": False}[type_name]
+        if type_name == "TROOF":
+            return self.to_troof(value)
+        if type_name == "YARN":
+            return self.to_text(value)
+        if type_name == "NUMBR":
+            return int(self.to_number(value))
+        return float(self.to_number(value))
+
+    # NOOB, "" and zero are FAIL, everything else is WIN, this is the same as python's bool()
+    def to_troof(self, value):
+        return bool(value)
 
     #used by VISIBLE to convert values to strings for printing
     def to_text(self, value):
