@@ -173,11 +173,12 @@ class Parser:
             return self.parse_visible()
         if self.at("GIMMEH"):
             return self.parse_input()
-        if self.at("VARIDENT"):
+        if self.at("VARIDENT") and self.peek(1).type in ("R", "IS_NOW_A"):
             return self.parse_assignment()
         if self.at("O_RLY"):
             return self.parse_if()
-        if self.at(*BINARY_OPS, "NOT", "ANY_OF", "ALL_OF", "SMOOSH", "MAEK", "I_IZ"):
+        if self.at(*BINARY_OPS, "NOT", "ANY_OF", "ALL_OF", "SMOOSH", "MAEK", "I_IZ",
+                   "VARIDENT", "NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "STRING_DELIM"):
             return self.parse_expression_statement()
         if self.at("WTF"):
             return self.parse_switch()
@@ -221,12 +222,10 @@ class Parser:
             value = self.parse_expression()
             self.expect("NEWLINE", "end of line after the assignment")
             return Node("R", name.lexeme, [value])
-        if self.at("IS_NOW_A"):
-            self.advance()
-            type_token = self.expect("TYPE_LITERAL", "a type after IS NOW A")
-            self.expect("NEWLINE", "end of line after IS NOW A")
-            return Node("IS_NOW_A", name.lexeme, [Node("TYPE_LITERAL", type_token.lexeme)])
-        self.error(f"expected R or IS NOW A after '{name.lexeme}', found {self.describe(self.peek())}")
+        self.advance()  # IS NOW A
+        type_token = self.expect("TYPE_LITERAL", "a type after IS NOW A")
+        self.expect("NEWLINE", "end of line after IS NOW A")
+        return Node("IS_NOW_A", name.lexeme, [Node("TYPE_LITERAL", type_token.lexeme)])
 
     def parse_if(self):
         self.advance()  # O RLY?
