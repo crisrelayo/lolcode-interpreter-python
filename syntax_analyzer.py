@@ -27,6 +27,9 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
+        # how many loops and switches we are inside, GTFO needs one of these or a function
+        self.gtfo_depth = 0
+        self.in_function = False
 
     # looks at a token without moving, returns None past the end
     def peek(self, offset=0):
@@ -268,6 +271,8 @@ class Parser:
         return Node("O_RLY", None, clauses)
 
     def parse_break(self):
+        if self.gtfo_depth == 0 and not self.in_function:
+            self.error("GTFO is only allowed inside a loop, a switch or a function")
         self.advance()  # GTFO
         self.expect("NEWLINE", "end of line after GTFO")
         return Node("GTFO")
@@ -277,6 +282,7 @@ class Parser:
         self.expect("NEWLINE", "end of line after WTF?")
         stops = ("OMG", "OMGWTF", "OIC", "KTHXBYE")
         clauses = []
+        self.gtfo_depth += 1
 
         if not self.at("OMG"):
             self.error(f"expected OMG after WTF?, found {self.describe(self.peek())}")
@@ -295,6 +301,7 @@ class Parser:
             self.expect("NEWLINE", "end of line after OMGWTF")
             clauses.append(Node("OMGWTF", None, self.parse_statement_list(*stops)))
 
+        self.gtfo_depth -= 1
         self.expect("OIC", "OIC to close WTF?")
         self.expect("NEWLINE", "end of line after OIC")
         return Node("WTF", None, clauses)
@@ -314,7 +321,9 @@ class Parser:
                 children.append(Node(condition.type, None, [self.parse_expression()]))
 
         self.expect("NEWLINE", "end of line after the loop header")
+        self.gtfo_depth += 1
         children += self.parse_statement_list("IM_OUTTA_YR", "KTHXBYE")
+        self.gtfo_depth -= 1
         self.expect("IM_OUTTA_YR", "IM OUTTA YR to close the loop")
         end_label = self.expect("LOOPIDENT", "the loop name after IM OUTTA YR")
         if end_label.lexeme != label.lexeme:
@@ -336,12 +345,16 @@ class Parser:
                 params.append(Node("VARIDENT", self.expect("VARIDENT", "a parameter name after YR").lexeme))
 
         self.expect("NEWLINE", "end of line after the function header")
+        self.in_function = True
         body = self.parse_statement_list("IF_U_SAY_SO", "KTHXBYE")
+        self.in_function = False
         self.expect("IF_U_SAY_SO", "IF U SAY SO to close the function")
         self.expect("NEWLINE", "end of line after IF U SAY SO")
         return Node("FUNCTION", name.lexeme, [Node("PARAMS", None, params)] + body)  # first child is the parameter list
 
     def parse_return(self):
+        if not self.in_function:
+            self.error("FOUND YR is only allowed inside a function")
         self.advance()  # FOUND YR
         value = self.parse_expression()
         self.expect("NEWLINE", "end of line after FOUND YR")
