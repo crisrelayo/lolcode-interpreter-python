@@ -68,6 +68,8 @@ class SemanticAnalyzer:
             return self.is_same(self.evaluate(node.children[0]), self.evaluate(node.children[1]))
         if kind == "DIFFRINT":
             return not self.is_same(self.evaluate(node.children[0]), self.evaluate(node.children[1]))
+        if kind in ("NOT", "BOTH_OF", "EITHER_OF", "WON_OF", "ALL_OF", "ANY_OF"):
+            return self.boolean(kind, [self.to_troof(self.evaluate(child)) for child in node.children])
         raise SemanticError(f"{kind} is not supported yet")
 
     #does the actual math for the arithmetic operations, and also converts the operands to numbers if they are not already
@@ -91,6 +93,16 @@ class SemanticAnalyzer:
         if kind == "QUOSHUNT_OF":
             return a / b if isinstance(a, float) or isinstance(b, float) else int(a / b)
         return a % b  # MOD_OF
+
+    # values is a list of TROOFs, with 1 value for NOT and 2 for BOTH OF, EITHER OF and WON OF
+    def boolean(self, kind, values):
+        if kind == "NOT":
+            return not values[0]
+        if kind == "WON_OF":
+            return values[0] != values[1]
+        if kind in ("BOTH_OF", "ALL_OF"):
+            return all(values)
+        return any(values)  # EITHER_OF and ANY_OF
 
     #helper functions
     #this requires that a variable has been declared before it is used, otherwise it raises a SemanticError
