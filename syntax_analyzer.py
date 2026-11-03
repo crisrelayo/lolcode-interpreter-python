@@ -27,6 +27,9 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
+        # how many loops and switches we are inside, GTFO needs one of these or a function
+        self.gtfo_depth = 0
+        self.in_function = False
 
     # looks at a token without moving, returns None past the end
     def peek(self, offset=0):
@@ -66,8 +69,8 @@ class Parser:
         return f"'{token.lexeme}'"
 
     # <program> ::= <function_list> HAI <linebreak> <var_section> <statement_list> KTHXBYE <linebreak> <function_list>
-    # for now only HAI and KTHXBYE, the other parts get added in the next steps
     def parse_program(self):
+        functions = self.parse_function_list()
         self.expect("HAI", "HAI")
         self.expect("NEWLINE", "end of line after HAI")
 
@@ -76,9 +79,16 @@ class Parser:
         
         self.expect("KTHXBYE", "KTHXBYE")
         self.expect("NEWLINE", "end of line after KTHXBYE")
+        functions += self.parse_function_list()
         if self.peek() is not None:
             self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
-        return Program([], declarations, statements)
+        return Program(functions, declarations, statements)
+
+    def parse_function_list(self):
+        functions = []
+        while self.at("HOW_IZ_I"):
+            functions.append(self.parse_function())
+        return functions
 
     def parse_variable(self):
         declarations = []
@@ -114,17 +124,36 @@ class Parser:
         self.expect("NEWLINE", "end of line after the variable declaration")
         return Node("declaration", name.lexeme, children)
     
+    # <expr> ::= <operand> | <concat> | <infinite_bool>
     def parse_expression(self):
+        token = self.peek()
+
+        # infinite arity, only parse_expression handles these so they can't be nested
+        if self.at("ANY_OF", "ALL_OF", "SMOOSH"):
+            self.advance()
+            operands = [self.parse_operand()]
+            # AN YR starts the next function argument, so the operands stop there
+            while self.at("AN") and self.peek(1).type != "YR":
+                self.advance()
+                operands.append(self.parse_operand())
+            # only ANY OF and ALL OF end with MKAY, SMOOSH doesn't
+            if token.type != "SMOOSH":
+                self.expect("MKAY", "MKAY at the end of operands")
+            return Node(token.type, None, operands)
+
+        return self.parse_operand()
+
+    def parse_operand(self):
         token = self.peek()
 
         if self.at(*BINARY_OPS):
             self.advance()
-            left = self.parse_expression()
+            left = self.parse_operand()
             self.expect("AN", "AN between the two operands")
-            right = self.parse_expression()
+            right = self.parse_operand()
             return Node(token.type, None, [left, right])
 
-        if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "VARIDENT"):
+        if self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "VARIDENT"):
             self.advance()
             return Node(token.type, token.lexeme)
         
@@ -136,23 +165,12 @@ class Parser:
 
         if self.at("NOT"):
             self.advance()
-            return Node("NOT", None, [self.parse_expression()])
-
-        # infinite arity
-        if self.at("ANY_OF", "ALL_OF", "SMOOSH"):
-            self.advance()
-            operands = [self.parse_expression()]
-            while self.at("AN"):
-                self.advance()
-                operands.append(self.parse_expression())
-            #expect mkay at the end of the operands even in SMOOSH
-            self.expect("MKAY", "MKAY at the end of operands")
-            return Node(token.type, None, operands)
+            return Node("NOT", None, [self.parse_operand()])
 
         # MAEK expression A TYPE (DOES NOT REQUIRE "A")
         if self.at("MAEK"):
             self.advance()
-            operand = self.parse_expression()
+            operand = self.parse_operand()
             if self.at("A"):
                 self.advance()
             type_token = self.expect("TYPE_LITERAL", "a valid type")
@@ -174,11 +192,12 @@ class Parser:
             return self.parse_visible()
         if self.at("GIMMEH"):
             return self.parse_input()
-        if self.at("VARIDENT"):
+        if self.at("VARIDENT") and self.peek(1).type in ("R", "IS_NOW_A"):
             return self.parse_assignment()
         if self.at("O_RLY"):
             return self.parse_if()
-        if self.at(*BINARY_OPS, "NOT", "ANY_OF", "ALL_OF", "SMOOSH", "MAEK", "I_IZ"):
+        if self.at(*BINARY_OPS, "NOT", "ANY_OF", "ALL_OF", "SMOOSH", "MAEK", "I_IZ",
+                   "VARIDENT", "NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "STRING_DELIM"):
             return self.parse_expression_statement()
         if self.at("WTF"):
             return self.parse_switch()
@@ -186,8 +205,6 @@ class Parser:
             return self.parse_break()
         if self.at("IM_IN_YR"):
             return self.parse_loop()
-        if self.at("HOW_IZ_I"):
-            return self.parse_function()
         if self.at("FOUND_YR"):
             return self.parse_return()
         self.error(f"expected a statement, found {self.describe(self.peek())}")
@@ -222,12 +239,10 @@ class Parser:
             value = self.parse_expression()
             self.expect("NEWLINE", "end of line after the assignment")
             return Node("R", name.lexeme, [value])
-        if self.at("IS_NOW_A"):
-            self.advance()
-            type_token = self.expect("TYPE_LITERAL", "a type after IS NOW A")
-            self.expect("NEWLINE", "end of line after IS NOW A")
-            return Node("IS_NOW_A", name.lexeme, [Node("TYPE_LITERAL", type_token.lexeme)])
-        self.error(f"expected R or IS NOW A after '{name.lexeme}', found {self.describe(self.peek())}")
+        self.advance()  # IS NOW A
+        type_token = self.expect("TYPE_LITERAL", "a type after IS NOW A")
+        self.expect("NEWLINE", "end of line after IS NOW A")
+        return Node("IS_NOW_A", name.lexeme, [Node("TYPE_LITERAL", type_token.lexeme)])
 
     def parse_if(self):
         self.advance()  # O RLY?
@@ -256,6 +271,8 @@ class Parser:
         return Node("O_RLY", None, clauses)
 
     def parse_break(self):
+        if self.gtfo_depth == 0 and not self.in_function:
+            self.error("GTFO is only allowed inside a loop, a switch or a function")
         self.advance()  # GTFO
         self.expect("NEWLINE", "end of line after GTFO")
         return Node("GTFO")
@@ -265,13 +282,14 @@ class Parser:
         self.expect("NEWLINE", "end of line after WTF?")
         stops = ("OMG", "OMGWTF", "OIC", "KTHXBYE")
         clauses = []
+        self.gtfo_depth += 1
 
         if not self.at("OMG"):
             self.error(f"expected OMG after WTF?, found {self.describe(self.peek())}")
 
         while self.at("OMG"):
             self.advance()
-            if not self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "TYPE_LITERAL", "STRING_DELIM"):
+            if not self.at("NUMBR_LITERAL", "NUMBAR_LITERAL", "TROOF_LITERAL", "STRING_DELIM"):
                 self.error(f"expected a literal after OMG, found {self.describe(self.peek())}")
             literal = self.parse_expression()
             self.expect("NEWLINE", "end of line after the OMG value")
@@ -283,6 +301,7 @@ class Parser:
             self.expect("NEWLINE", "end of line after OMGWTF")
             clauses.append(Node("OMGWTF", None, self.parse_statement_list(*stops)))
 
+        self.gtfo_depth -= 1
         self.expect("OIC", "OIC to close WTF?")
         self.expect("NEWLINE", "end of line after OIC")
         return Node("WTF", None, clauses)
@@ -292,17 +311,21 @@ class Parser:
         label = self.expect("LOOPIDENT", "a loop name after IM IN YR")
         children = []
 
-        if self.at("UPPIN", "NERFIN"):
-            operation = self.advance()
-            self.expect("YR", "YR after UPPIN or NERFIN")
-            variable = self.expect("VARIDENT", "a variable after YR")
-            children.append(Node(operation.type, variable.lexeme))
-            if self.at("TIL", "WILE"):
-                condition = self.advance()
-                children.append(Node(condition.type, None, [self.parse_expression()]))
+        if not self.at("UPPIN", "NERFIN"):
+            self.error(f"expected UPPIN or NERFIN after the loop name, found {self.describe(self.peek())}")
+
+        operation = self.advance()
+        self.expect("YR", "YR after UPPIN or NERFIN")
+        variable = self.expect("VARIDENT", "a variable after YR")
+        children.append(Node(operation.type, variable.lexeme))
+        if self.at("TIL", "WILE"):
+            condition = self.advance()
+            children.append(Node(condition.type, None, [self.parse_expression()]))
 
         self.expect("NEWLINE", "end of line after the loop header")
+        self.gtfo_depth += 1
         children += self.parse_statement_list("IM_OUTTA_YR", "KTHXBYE")
+        self.gtfo_depth -= 1
         self.expect("IM_OUTTA_YR", "IM OUTTA YR to close the loop")
         end_label = self.expect("LOOPIDENT", "the loop name after IM OUTTA YR")
         if end_label.lexeme != label.lexeme:
@@ -324,12 +347,16 @@ class Parser:
                 params.append(Node("VARIDENT", self.expect("VARIDENT", "a parameter name after YR").lexeme))
 
         self.expect("NEWLINE", "end of line after the function header")
+        self.in_function = True
         body = self.parse_statement_list("IF_U_SAY_SO", "KTHXBYE")
+        self.in_function = False
         self.expect("IF_U_SAY_SO", "IF U SAY SO to close the function")
         self.expect("NEWLINE", "end of line after IF U SAY SO")
         return Node("FUNCTION", name.lexeme, [Node("PARAMS", None, params)] + body)  # first child is the parameter list
 
     def parse_return(self):
+        if not self.in_function:
+            self.error("FOUND YR is only allowed inside a function")
         self.advance()  # FOUND YR
         value = self.parse_expression()
         self.expect("NEWLINE", "end of line after FOUND YR")
