@@ -114,6 +114,7 @@ class LOLCodeGUI:
             return
         self.editor.delete("1.0", "end")
         self.editor.insert("1.0", source)
+        self.editor.edit_reset()  # so undo can't go back to before the file was opened
         self.editor.edit_modified(False)
         self.current_file = Path(path)
         self.file_label.configure(text=self.current_file.name)
