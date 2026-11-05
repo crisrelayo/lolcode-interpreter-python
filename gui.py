@@ -159,9 +159,11 @@ class LOLCodeGUI:
         self.root.update_idletasks()
 
     def _output(self, *values, sep=" ", end="\n"):
+        self._display_symbols()
         self._write_console(sep.join(str(value) for value in values) + end)
 
     def _read_input(self):
+        self._display_symbols()
         answer = simpledialog.askstring("GIMMEH Input", "Enter a value:", parent=self.root)
         if answer is None:
             raise SemanticError("Input canceled during GIMMEH")
@@ -172,10 +174,12 @@ class LOLCodeGUI:
         for token in gui_tokens(tokens):
             self.token_table.insert("", "end", values=(token.lexeme, token.classification))
 
-    def _display_symbols(self, analyzer):
-        for identifier, value in analyzer.variables.items():
+    # called before each VISIBLE and GIMMEH and at the end of the run, so the values stay current
+    def _display_symbols(self):
+        self._clear_table(self.symbol_table)
+        for identifier, value in self.analyzer.variables.items():
             self.symbol_table.insert(
-                "", "end", values=(identifier, analyzer.to_text(value))
+                "", "end", values=(identifier, self.analyzer.to_text(value))
             )
 
     def execute(self):
@@ -198,16 +202,16 @@ class LOLCodeGUI:
             self._write_console(f"{type(error).__name__}: {error}\n")
             return
 
-        analyzer = SemanticAnalyzer(output=self._output, read_input=self._read_input)
+        self.analyzer = SemanticAnalyzer(output=self._output, read_input=self._read_input)
         try:
-            analyzer.run(program)
+            self.analyzer.run(program)
         except SemanticError as error:
             self._write_console(f"SemanticError: {error}\n")
         except (ArithmeticError, ValueError, TypeError) as error:
             # Defensive handling for Python errors in the interpreter's operations.
             self._write_console(f"Runtime error: {error}\n")
         finally:
-            self._display_symbols(analyzer)
+            self._display_symbols()
 
 def main():
     root = tk.Tk()
