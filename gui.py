@@ -107,6 +107,11 @@ class LOLCodeGUI:
         )
         if not path:
             return  # The user canceled file selection.
+        # edit_modified is true if the text changed since the last open or save
+        if self.editor.edit_modified():
+            message = "You have unsaved changes. Open this file anyway?"
+            if not messagebox.askyesno("Unsaved Changes", message, parent=self.root):
+                return
         try:
             source = Path(path).read_text(encoding="utf-8")
         except (OSError, UnicodeError) as error:
