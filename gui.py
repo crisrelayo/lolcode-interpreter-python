@@ -31,7 +31,6 @@ class LOLCodeGUI:
 
         # UPPER AREA: EDITOR AND TABLES
         upper = ttk.Panedwindow(outer, orient="horizontal")
-        upper.pack(fill="both", expand=True)
         editor_panel = ttk.LabelFrame(upper, text="LOLCODE Text Editor", padding=6)
         tables_panel = ttk.Frame(upper)
         upper.add(editor_panel, weight=3)
@@ -43,7 +42,13 @@ class LOLCodeGUI:
             font=("Consolas", 11),
             undo=True
         )
-        self.editor.pack(fill="both", expand=True)
+        editor_y = ttk.Scrollbar(editor_panel, orient="vertical", command=self.editor.yview)
+        editor_x = ttk.Scrollbar(editor_panel, orient="horizontal", command=self.editor.xview)
+        self.editor.configure(yscrollcommand=editor_y.set, xscrollcommand=editor_x.set)
+        # packed before the editor so a small window can't push them out
+        editor_y.pack(side="right", fill="y")
+        editor_x.pack(side="bottom", fill="x")
+        self.editor.pack(side="left", fill="both", expand=True)
 
         tables_panel.rowconfigure(0, weight=1)
         tables_panel.rowconfigure(1, weight=1)
@@ -61,12 +66,8 @@ class LOLCodeGUI:
             symbols_frame, ("identifier", "value"), ("Identifier", "Value")
         )
 
-        ttk.Button(outer, text="EXECUTE / RUN", command=self.execute).pack(
-            fill="x", pady=(8, 8)
-        )
-
         console_frame = ttk.LabelFrame(outer, text="Console (Input / Output)", padding=6)
-        console_frame.pack(fill="both", expand=False)
+        console_frame.pack(side="bottom", fill="x")
         console_frame.configure(height=180)
         console_frame.pack_propagate(False)
         self.console = tk.Text(
@@ -76,6 +77,13 @@ class LOLCodeGUI:
         console_y = ttk.Scrollbar(console_frame, orient="vertical", command=self.console.yview)
         console_y.pack(side="right", fill="y")
         self.console.configure(yscrollcommand=console_y.set)
+
+        ttk.Button(outer, text="EXECUTE / RUN", command=self.execute).pack(
+            side="bottom", fill="x", pady=(8, 8)
+        )
+
+        # packed last so it only gets the leftover space, this keeps execute and the console visible
+        upper.pack(fill="both", expand=True)
 
     @staticmethod
     def _make_table(parent, columns, headings):
