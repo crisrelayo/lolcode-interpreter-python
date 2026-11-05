@@ -151,8 +151,10 @@ class SemanticAnalyzer:
             pass
         except FoundYr as found:
             result = found.value
+        # finally also runs after an error, so the gui's symbol table shows the program's variables
+        finally:
+            self.variables = caller_variables
 
-        self.variables = caller_variables
         self.variables["IT"] = result
         return result
 
