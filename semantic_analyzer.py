@@ -282,6 +282,12 @@ class SemanticAnalyzer:
         if isinstance(value, bool):
             return "WIN" if value else "FAIL"
         # keeps 2 decimals without rounding, going through 10 decimals first removes float noise
+        # a trailing zero is dropped, so 17.0 stays 17.0 and 2.50 becomes 2.5
         if isinstance(value, float):
-            return f"{value:.10f}"[:-8]
+            text = f"{value:.10f}"[:-8]
+            if text.endswith("0"):
+                text = text[:-1]
+            if text == "-0.0":
+                text = "0.0"
+            return text
         return str(value)

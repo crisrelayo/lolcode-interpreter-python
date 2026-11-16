@@ -157,6 +157,15 @@ def tokenize(source):
     return tokens
 
 
+# A and R are keywords, but they should also be valid variable names
+def is_variable_name(keyword, rest_of_line, line_tokens):
+    if keyword == "R":
+        return not (len(line_tokens) == 1 and line_tokens[0].type == "VARIDENT")
+    after_maek = len(line_tokens) > 0 and line_tokens[-1].type == "MAEK"
+    before_type = re.match(r"\s+(NOOB|NUMBR|NUMBAR|YARN|TROOF)" + END_OF_WORD, rest_of_line)
+    return after_maek or not before_type
+
+
 # returns True if the line starts an OBTW block
 def tokenize_line(line, line_number, tokens):
     first_token = len(tokens)  # so we can tell if this line already has code before an OBTW
@@ -182,6 +191,9 @@ def tokenize_line(line, line_number, tokens):
 
         # keywords and literals before identifiers, so ITZ and WIN are never read as variables
         found = match_pattern(KEYWORD_PATTERNS, line, pos)
+        if found is not None and found[1] in ("A", "R"):
+            if is_variable_name(found[1], line[pos + len(found[0]):], tokens[first_token:]):
+                found = None
         if found is None:
             found = match_pattern(LITERAL_PATTERNS, line, pos)
         if found:
