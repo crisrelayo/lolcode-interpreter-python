@@ -70,16 +70,24 @@ class Parser:
 
     # <program> ::= <function_list> HAI <linebreak> <var_section> <statement_list> KTHXBYE <linebreak> <function_list>
     def parse_program(self):
+
         functions = self.parse_function_list()
+
         self.expect("HAI", "HAI")
         self.expect("NEWLINE", "end of line after HAI")
 
         declarations = self.parse_variable()
+
+        functions += self.parse_function_list()
+
         statements = self.parse_statement_list("KTHXBYE")        
         
         self.expect("KTHXBYE", "KTHXBYE")
         self.expect("NEWLINE", "end of line after KTHXBYE")
+
         functions += self.parse_function_list()
+
+
         if self.peek() is not None:
             self.error(f"expected end of file after KTHXBYE, found {self.describe(self.peek())}")
         return Program(functions, declarations, statements)
