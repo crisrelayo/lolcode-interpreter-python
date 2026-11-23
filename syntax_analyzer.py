@@ -68,7 +68,7 @@ class Parser:
             return "end of line"
         return f"'{token.lexeme}'"
 
-    # <program> ::= <function_list> HAI <linebreak> <var_section> <statement_list> KTHXBYE <linebreak> <function_list>
+    # <program> ::= <function_list> HAI <linebreak> <var_section> <function_list> <statement_list> KTHXBYE <linebreak> <function_list>
     def parse_program(self):
 
         functions = self.parse_function_list()
